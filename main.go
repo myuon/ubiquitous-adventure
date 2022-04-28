@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	inputdynamodb "github.com/myuon/ubiquitous-adventure/input-dynamodb"
 	outputfile "github.com/myuon/ubiquitous-adventure/output-file"
 )
@@ -44,13 +45,14 @@ func start() error {
 	extractor, err := inputdynamodb.NewInputDynamoDbClient(inputdynamodb.InputDynamoDbClientConfig{
 		TableName: os.Getenv("TABLE_NAME"),
 		Region:    "ap-northeast-1",
+		PageLimit: aws.Int(1),
 	})
 	if err != nil {
 		return err
 	}
 
 	loader := outputfile.NewOutputFileClient(outputfile.OutputFileClientConfig{
-		FilePath:   "./output.json",
+		FilePath:   "./data/output.jsonl",
 		FileFormat: outputfile.Json,
 	})
 
