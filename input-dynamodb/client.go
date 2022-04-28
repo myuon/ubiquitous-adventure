@@ -9,13 +9,16 @@ import (
 	"sync/atomic"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 type InputDynamoDbClientConfig struct {
 	TableName string
 	Region    string
 	PageLimit *int
+	PageSize  *int32
 }
 
 type InputDynamoDbClient struct {
@@ -23,6 +26,15 @@ type InputDynamoDbClient struct {
 	conf     InputDynamoDbClientConfig
 	buffer   *bytes.Buffer
 	done     int32
+}
+
+func DecodeItem(item map[string]types.AttributeValue) ([]byte, error) {
+	var result map[string]interface{}
+	if err := attributevalue.UnmarshalMap(item, &result); err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(&result)
 }
 
 func (client *InputDynamoDbClient) Read(p []byte) (int, error) {
@@ -43,6 +55,7 @@ func (client *InputDynamoDbClient) Connect(
 	go func() {
 		pager := dynamodb.NewScanPaginator(client.dynamoDb, &dynamodb.ScanInput{
 			TableName: &client.conf.TableName,
+			Limit:     client.conf.PageSize,
 		})
 		count := 1
 
@@ -57,9 +70,14 @@ func (client *InputDynamoDbClient) Connect(
 				return
 			}
 
-			encoder := json.NewEncoder(client.buffer)
 			for _, item := range output.Items {
-				if err := encoder.Encode(item); err != nil {
+				body, err := DecodeItem(item)
+				if err != nil {
+					log.Fatalf("%v", err)
+					return
+				}
+
+				if _, err := client.buffer.Write(body); err != nil {
 					log.Fatalf("%v", err)
 					return
 				}

@@ -46,6 +46,7 @@ func start() error {
 		TableName: os.Getenv("TABLE_NAME"),
 		Region:    "ap-northeast-1",
 		PageLimit: aws.Int(1),
+		PageSize:  aws.Int32(1),
 	})
 	if err != nil {
 		return err
