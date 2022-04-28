@@ -37,21 +37,10 @@ func DecodeItem(item map[string]types.AttributeValue) ([]byte, error) {
 	return json.Marshal(&result)
 }
 
-func (client *InputDynamoDbClient) Read(p []byte) (int, error) {
-	if client.buffer.Len() == 0 {
-		if client.done == 1 {
-			return 0, io.EOF
-		}
-
-		return 0, nil
-	}
-
-	return client.buffer.Read(p)
-}
-
 func (client *InputDynamoDbClient) Connect(
 	ctx context.Context,
-) (io.Reader, error) {
+	pw *io.PipeWriter,
+) error {
 	go func() {
 		pager := dynamodb.NewScanPaginator(client.dynamoDb, &dynamodb.ScanInput{
 			TableName: &client.conf.TableName,
@@ -76,8 +65,9 @@ func (client *InputDynamoDbClient) Connect(
 					log.Fatalf("%v", err)
 					return
 				}
+				body = append(body, '\n')
 
-				if _, err := client.buffer.Write(body); err != nil {
+				if _, err := pw.Write(body); err != nil {
 					log.Fatalf("%v", err)
 					return
 				}
@@ -86,10 +76,14 @@ func (client *InputDynamoDbClient) Connect(
 			count++
 		}
 
+		if err := pw.Close(); err != nil {
+			log.Fatalf("%v", err)
+			return
+		}
 		atomic.AddInt32(&client.done, 1)
 	}()
 
-	return client, nil
+	return nil
 }
 
 func NewInputDynamoDbClient(conf InputDynamoDbClientConfig) (InputDynamoDbClient, error) {

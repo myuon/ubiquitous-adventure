@@ -17,8 +17,9 @@ type Worker struct {
 }
 
 func (worker Worker) Run() error {
-	reader, err := worker.extractor.Connect(context.TODO())
-	if err != nil {
+	pr, pw := io.Pipe()
+
+	if err := worker.extractor.Connect(context.TODO(), pw); err != nil {
 		return err
 	}
 
@@ -27,7 +28,7 @@ func (worker Worker) Run() error {
 		return err
 	}
 
-	total, err := io.Copy(writer, reader)
+	total, err := io.Copy(writer, pr)
 	if err != nil {
 		return err
 	}
@@ -46,7 +47,7 @@ func start() error {
 		TableName: os.Getenv("TABLE_NAME"),
 		Region:    "ap-northeast-1",
 		PageLimit: aws.Int(1),
-		PageSize:  aws.Int32(1),
+		PageSize:  aws.Int32(10),
 	})
 	if err != nil {
 		return err
