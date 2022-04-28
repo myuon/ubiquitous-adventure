@@ -1,6 +1,7 @@
 package outputfile
 
 import (
+	"compress/gzip"
 	"context"
 	"io"
 	"os"
@@ -12,26 +13,47 @@ const (
 	Json FileFormat = "json"
 )
 
+type Compression string
+
+const (
+	None Compression = "none"
+	Gzip Compression = "gzip"
+)
+
 type OutputFileClientConfig struct {
-	FilePath   string
-	FileFormat FileFormat
+	FilePath    string
+	FileFormat  FileFormat
+	Compression Compression
 }
 
 type OutputFileClient struct {
 	conf OutputFileClientConfig
-	file *os.File
+	file io.WriteCloser
 }
 
 func (client *OutputFileClient) Connect(
 	ctx context.Context,
 ) (io.Writer, error) {
-	file, err := os.Create(client.conf.FilePath)
+	filePath := client.conf.FilePath
+	if client.conf.Compression == Gzip {
+		filePath += ".gz"
+	}
+
+	file, err := os.Create(filePath)
 	if err != nil {
 		return nil, err
 	}
-	client.file = file
 
-	return client.file, nil
+	var writer io.WriteCloser
+	writer = file
+
+	if client.conf.Compression == Gzip {
+		writer = gzip.NewWriter(writer)
+	}
+
+	client.file = writer
+
+	return writer, nil
 }
 
 func (client OutputFileClient) Close() error {

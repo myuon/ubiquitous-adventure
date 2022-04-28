@@ -53,8 +53,9 @@ func start() error {
 	}
 
 	loader := outputfile.NewOutputFileClient(outputfile.OutputFileClientConfig{
-		FilePath:   "./data/output.jsonl",
-		FileFormat: outputfile.Json,
+		FilePath:    "./data/output.jsonl",
+		FileFormat:  outputfile.Json,
+		Compression: outputfile.Gzip,
 	})
 
 	worker := Worker{
