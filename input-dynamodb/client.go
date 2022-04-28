@@ -1,12 +1,10 @@
 package inputdynamodb
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"io"
 	"log"
-	"sync/atomic"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -24,8 +22,6 @@ type InputDynamoDbClientConfig struct {
 type InputDynamoDbClient struct {
 	dynamoDb *dynamodb.Client
 	conf     InputDynamoDbClientConfig
-	buffer   *bytes.Buffer
-	done     int32
 }
 
 func DecodeItem(item map[string]types.AttributeValue) ([]byte, error) {
@@ -80,7 +76,6 @@ func (client *InputDynamoDbClient) Connect(
 			log.Fatalf("%v", err)
 			return
 		}
-		atomic.AddInt32(&client.done, 1)
 	}()
 
 	return nil
@@ -97,7 +92,5 @@ func NewInputDynamoDbClient(conf InputDynamoDbClientConfig) (InputDynamoDbClient
 	return InputDynamoDbClient{
 		dynamoDb: client,
 		conf:     conf,
-		buffer:   new(bytes.Buffer),
-		done:     0,
 	}, nil
 }
