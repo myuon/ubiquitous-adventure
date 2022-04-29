@@ -33,36 +33,28 @@ func (client InputFileClient) Connect(
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 
-	go func() {
-		defer func() {
-			if err := writer.Close(); err != nil {
-				log.Error().Err(err).Msg("failed to close writer")
-			}
-			if err := file.Close(); err != nil {
-				log.Error().Err(err).Msg("failed to close file")
-			}
-		}()
+	defer writer.Close()
 
-		if client.conf.FileFormat == Jsonl {
-			for scanner.Scan() {
-				r, err := client.conf.Decoder(scanner.Bytes())
-				if err != nil {
-					log.Error().Err(err).Msg("failed to decode item")
-					continue
-				}
-
-				if err := writer.Write(r); err != nil {
-					log.Error().Err(err).Msg("failed to write item")
-					continue
-				}
+	if client.conf.FileFormat == Jsonl {
+		for scanner.Scan() {
+			r, err := client.conf.Decoder(scanner.Bytes())
+			if err != nil {
+				log.Error().Err(err).Msg("failed to decode item")
+				continue
 			}
-		} else {
-			log.Error().Str("format", string(client.conf.FileFormat)).Msg("unknown file format")
+
+			if err := writer.Write(r); err != nil {
+				log.Error().Err(err).Msg("failed to write item")
+				continue
+			}
 		}
-	}()
+	} else {
+		log.Error().Str("format", string(client.conf.FileFormat)).Msg("unknown file format")
+	}
 
 	return nil
 }

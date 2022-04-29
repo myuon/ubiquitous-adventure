@@ -4,16 +4,30 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/myuon/ubiquitous-adventure/gallon"
-	inputdynamodb "github.com/myuon/ubiquitous-adventure/input-dynamodb"
+	inputfile "github.com/myuon/ubiquitous-adventure/input-file"
 	outputfile "github.com/myuon/ubiquitous-adventure/output-file"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 )
+
+type InDataJson struct {
+	Id        string `json:"id"`
+	UserId    string `json:"user_id"`
+	GachaType string `json:"gacha_type"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+func (i InDataJson) Encode() (gallon.Record, error) {
+	return gallon.Record{
+		i.Id,
+		i.UserId,
+		i.GachaType,
+		i.CreatedAt,
+	}, nil
+}
 
 type InData struct {
 	Id        string                `dynamodbav:"id"`
@@ -53,23 +67,37 @@ func Decode(record gallon.Record) (OutData, error) {
 }
 
 func start() error {
-	input, err := inputdynamodb.NewInputDynamoDbClient(inputdynamodb.InputDynamoDbClientConfig{
-		TableName: os.Getenv("TABLE_NAME"),
-		Region:    "ap-northeast-1",
-		PageLimit: aws.Int(1),
-		PageSize:  aws.Int32(10),
-		Decoder: func(item map[string]types.AttributeValue) (gallon.Record, error) {
-			var inData InData
-			if err := attributevalue.UnmarshalMap(item, &inData); err != nil {
+	/*
+		input, err := inputdynamodb.NewInputDynamoDbClient(inputdynamodb.InputDynamoDbClientConfig{
+			TableName: os.Getenv("TABLE_NAME"),
+			Region:    "ap-northeast-1",
+			PageLimit: aws.Int(1),
+			PageSize:  aws.Int32(10),
+			Decoder: func(item map[string]types.AttributeValue) (gallon.Record, error) {
+				var inData InData
+				if err := attributevalue.UnmarshalMap(item, &inData); err != nil {
+					return nil, err
+				}
+
+				return inData.Encode()
+			},
+		})
+		if err != nil {
+			return err
+		}
+	*/
+	input := inputfile.NewInputFileClient(inputfile.InputFileClientConfig{
+		FilePath:   "./data/output.jsonl",
+		FileFormat: inputfile.Jsonl,
+		Decoder: func(b []byte) (gallon.Record, error) {
+			var inData InDataJson
+			if err := json.Unmarshal(b, &inData); err != nil {
 				return nil, err
 			}
 
 			return inData.Encode()
 		},
 	})
-	if err != nil {
-		return err
-	}
 
 	output := outputfile.NewOutputFileClient(outputfile.OutputFileClientConfig{
 		FilePath:   "./data/new.jsonl",
