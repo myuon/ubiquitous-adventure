@@ -3,13 +3,13 @@ package inputdynamodb
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/myuon/ubiquitous-adventure/gallon"
 )
 
 type InputDynamoDbClientConfig struct {
@@ -35,7 +35,8 @@ func DecodeItem(item map[string]types.AttributeValue) ([]byte, error) {
 
 func (client *InputDynamoDbClient) Connect(
 	ctx context.Context,
-	pw *io.PipeWriter,
+	writer gallon.Writer,
+	decoder func(item map[string]types.AttributeValue) (gallon.Record, error),
 ) error {
 	go func() {
 		pager := dynamodb.NewScanPaginator(client.dynamoDb, &dynamodb.ScanInput{
@@ -56,14 +57,13 @@ func (client *InputDynamoDbClient) Connect(
 			}
 
 			for _, item := range output.Items {
-				body, err := DecodeItem(item)
+				r, err := decoder(item)
 				if err != nil {
 					log.Fatalf("%v", err)
 					return
 				}
-				body = append(body, '\n')
 
-				if _, err := pw.Write(body); err != nil {
+				if err := writer.Write(r); err != nil {
 					log.Fatalf("%v", err)
 					return
 				}
@@ -72,7 +72,7 @@ func (client *InputDynamoDbClient) Connect(
 			count++
 		}
 
-		if err := pw.Close(); err != nil {
+		if err := writer.Close(); err != nil {
 			log.Fatalf("%v", err)
 			return
 		}

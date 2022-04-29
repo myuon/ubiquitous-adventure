@@ -2,40 +2,90 @@ package main
 
 import (
 	"context"
-	"io"
+	"encoding/json"
 	"log"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/myuon/ubiquitous-adventure/gallon"
 	inputdynamodb "github.com/myuon/ubiquitous-adventure/input-dynamodb"
 	outputfile "github.com/myuon/ubiquitous-adventure/output-file"
 )
 
+type InData struct {
+	Id        string                `dynamodbav:"id"`
+	UserId    string                `dynamodbav:"user_id"`
+	GachaType string                `dynamodbav:"gacha_type"`
+	CreatedAt attributevalue.Number `dynamodbav:"created_at"`
+}
+
+func (i InData) Encode() (gallon.Record, error) {
+	createdAt, err := i.CreatedAt.Int64()
+	if err != nil {
+		return nil, err
+	}
+
+	return gallon.Record{
+		i.Id,
+		i.UserId,
+		i.GachaType,
+		createdAt,
+	}, nil
+}
+
+type OutData struct {
+	Id        string `json:"id"`
+	UserId    string `json:"user_id"`
+	GachaType string `json:"gacha_type"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+func Decode(record gallon.Record) (OutData, error) {
+	return OutData{
+		Id:        record[0].(string),
+		UserId:    record[1].(string),
+		GachaType: record[2].(string),
+		CreatedAt: record[3].(int64),
+	}, nil
+}
+
 type Worker struct {
-	extractor inputdynamodb.InputDynamoDbClient
-	loader    outputfile.OutputFileClient
+	input  inputdynamodb.InputDynamoDbClient
+	output outputfile.OutputFileClient
 }
 
 func (worker Worker) Run() error {
-	pr, pw := io.Pipe()
+	pipe := gallon.NewPipe()
 
-	if err := worker.extractor.Connect(context.TODO(), pw); err != nil {
+	if err := worker.input.Connect(
+		context.TODO(),
+		pipe.Writer,
+		func(item map[string]types.AttributeValue) (gallon.Record, error) {
+			var inData InData
+			if err := attributevalue.UnmarshalMap(item, &inData); err != nil {
+				return nil, err
+			}
+
+			return inData.Encode()
+		},
+	); err != nil {
 		return err
 	}
 
-	writer, err := worker.loader.Connect(context.TODO())
-	if err != nil {
-		return err
-	}
+	if err := worker.output.Connect(
+		context.TODO(),
+		pipe.Reader,
+		func(r gallon.Record) ([]byte, error) {
+			outData, err := Decode(r)
+			if err != nil {
+				return nil, err
+			}
 
-	total, err := io.Copy(writer, pr)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("%v bytes copied", total)
-
-	if err := worker.loader.Close(); err != nil {
+			return json.Marshal(&outData)
+		},
+	); err != nil {
 		return err
 	}
 
@@ -60,8 +110,8 @@ func start() error {
 	})
 
 	worker := Worker{
-		extractor: extractor,
-		loader:    loader,
+		input:  extractor,
+		output: loader,
 	}
 
 	if err := worker.Run(); err != nil {

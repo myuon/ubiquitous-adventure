@@ -4,7 +4,10 @@ import (
 	"compress/gzip"
 	"context"
 	"io"
+	"log"
 	"os"
+
+	"github.com/myuon/ubiquitous-adventure/gallon"
 )
 
 type FileFormat string
@@ -28,12 +31,13 @@ type OutputFileClientConfig struct {
 
 type OutputFileClient struct {
 	conf OutputFileClientConfig
-	file io.WriteCloser
 }
 
 func (client *OutputFileClient) Connect(
 	ctx context.Context,
-) (io.Writer, error) {
+	reader gallon.Reader,
+	encoder func(gallon.Record) ([]byte, error),
+) error {
 	filePath := client.conf.FilePath
 	if client.conf.Compression == Gzip {
 		filePath += ".gz"
@@ -41,24 +45,34 @@ func (client *OutputFileClient) Connect(
 
 	file, err := os.Create(filePath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var writer io.WriteCloser
+	defer func() { writer.Close() }()
 	writer = file
 
 	if client.conf.Compression == Gzip {
 		writer = gzip.NewWriter(writer)
 	}
 
-	client.file = writer
+	var record gallon.Record
 
-	return writer, nil
-}
+	for reader.More() {
+		if err := reader.Read(&record); err != nil {
+			log.Fatalf("%v", err)
+			continue
+		}
 
-func (client OutputFileClient) Close() error {
-	if err := client.file.Close(); err != nil {
-		return err
+		bs, err := encoder(record)
+		if err != nil {
+			log.Fatalf("%v", err)
+			continue
+		}
+		if _, err := writer.Write(bs); err != nil {
+			log.Fatalf("%v", err)
+			continue
+		}
 	}
 
 	return nil
@@ -67,6 +81,5 @@ func (client OutputFileClient) Close() error {
 func NewOutputFileClient(conf OutputFileClientConfig) OutputFileClient {
 	return OutputFileClient{
 		conf: conf,
-		file: nil,
 	}
 }
