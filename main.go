@@ -93,7 +93,7 @@ func (worker Worker) Run() error {
 }
 
 func start() error {
-	extractor, err := inputdynamodb.NewInputDynamoDbClient(inputdynamodb.InputDynamoDbClientConfig{
+	input, err := inputdynamodb.NewInputDynamoDbClient(inputdynamodb.InputDynamoDbClientConfig{
 		TableName: os.Getenv("TABLE_NAME"),
 		Region:    "ap-northeast-1",
 		PageLimit: aws.Int(1),
@@ -103,14 +103,14 @@ func start() error {
 		return err
 	}
 
-	loader := outputfile.NewOutputFileClient(outputfile.OutputFileClientConfig{
+	output := outputfile.NewOutputFileClient(outputfile.OutputFileClientConfig{
 		FilePath:   "./data/new.jsonl",
-		FileFormat: outputfile.Json,
+		FileFormat: outputfile.Jsonl,
 	})
 
 	worker := Worker{
-		input:  extractor,
-		output: loader,
+		input:  input,
+		output: output,
 	}
 
 	if err := worker.Run(); err != nil {

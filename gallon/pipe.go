@@ -1,16 +1,14 @@
 package gallon
 
 import (
-	"encoding/json"
 	"io"
 )
 
 type Record []interface{}
 
 type Pipe struct {
-	decoder *json.Decoder
-	encoder *json.Encoder
-	close   func() error
+	buffer chan Record
+	close  func() error
 }
 
 type Reader interface {
@@ -19,11 +17,16 @@ type Reader interface {
 }
 
 func (r Pipe) Read(record *Record) error {
-	return r.decoder.Decode(record)
+	select {
+	case r := <-r.buffer:
+		*record = r
+	}
+
+	return nil
 }
 
 func (r Pipe) More() bool {
-	return r.decoder.More()
+	return true
 }
 
 type WriteCloser interface {
@@ -32,19 +35,20 @@ type WriteCloser interface {
 }
 
 func (w Pipe) Write(record Record) error {
-	return w.encoder.Encode(record)
+	select {
+	case w.buffer <- record:
+	}
+
+	return nil
 }
 
 func (w Pipe) Close() error {
-	return w.close()
+	close(w.buffer)
+	return io.EOF
 }
 
 func NewPipe() Pipe {
-	reader, writer := io.Pipe()
-
 	return Pipe{
-		decoder: json.NewDecoder(reader),
-		encoder: json.NewEncoder(writer),
-		close:   writer.Close,
+		buffer: make(chan Record),
 	}
 }

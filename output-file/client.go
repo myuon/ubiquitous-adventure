@@ -13,7 +13,7 @@ import (
 type FileFormat string
 
 const (
-	Json FileFormat = "json"
+	Jsonl FileFormat = "jsonl"
 )
 
 type Compression string
@@ -49,7 +49,6 @@ func (client *OutputFileClient) Connect(
 	}
 
 	var writer io.WriteCloser
-	defer func() { writer.Close() }()
 	writer = file
 
 	if client.conf.Compression == Gzip {
@@ -57,6 +56,7 @@ func (client *OutputFileClient) Connect(
 	}
 
 	go func() {
+		defer func() { writer.Close() }()
 		var record gallon.Record
 
 		for reader.More() {
@@ -69,6 +69,10 @@ func (client *OutputFileClient) Connect(
 			if err != nil {
 				log.Fatalf("%v", err)
 				continue
+			}
+
+			if client.conf.FileFormat == Jsonl {
+				bs = append(bs, '\n')
 			}
 			if _, err := writer.Write(bs); err != nil {
 				log.Fatalf("%v", err)
