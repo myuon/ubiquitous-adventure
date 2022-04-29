@@ -61,7 +61,7 @@ func (worker Worker) Run() error {
 
 	if err := worker.output.Connect(
 		context.TODO(),
-		pipe.Reader,
+		pipe,
 		func(r gallon.Record) ([]byte, error) {
 			outData, err := Decode(r)
 			if err != nil {
@@ -76,7 +76,7 @@ func (worker Worker) Run() error {
 
 	if err := worker.input.Connect(
 		context.TODO(),
-		pipe.Writer,
+		pipe,
 		func(item map[string]types.AttributeValue) (gallon.Record, error) {
 			var inData InData
 			if err := attributevalue.UnmarshalMap(item, &inData); err != nil {

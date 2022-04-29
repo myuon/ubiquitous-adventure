@@ -7,54 +7,44 @@ import (
 
 type Record []interface{}
 
-type Reader struct {
+type Pipe struct {
 	decoder *json.Decoder
-}
-
-func (r Reader) Read(record *Record) error {
-	return r.decoder.Decode(record)
-}
-
-func (r Reader) More() bool {
-	return r.decoder.More()
-}
-
-func NewReader(reader io.Reader) Reader {
-	return Reader{
-		decoder: json.NewDecoder(reader),
-	}
-}
-
-type Writer struct {
 	encoder *json.Encoder
 	close   func() error
 }
 
-func (w Writer) Write(record Record) error {
+type Reader interface {
+	Read(record *Record) error
+	More() bool
+}
+
+func (r Pipe) Read(record *Record) error {
+	return r.decoder.Decode(record)
+}
+
+func (r Pipe) More() bool {
+	return r.decoder.More()
+}
+
+type WriteCloser interface {
+	Write(record Record) error
+	Close() error
+}
+
+func (w Pipe) Write(record Record) error {
 	return w.encoder.Encode(record)
 }
 
-func (w Writer) Close() error {
+func (w Pipe) Close() error {
 	return w.close()
-}
-
-func NewWriter(writer io.Writer, close func() error) Writer {
-	return Writer{
-		encoder: json.NewEncoder(writer),
-		close:   close,
-	}
-}
-
-type Pipe struct {
-	Reader Reader
-	Writer Writer
 }
 
 func NewPipe() Pipe {
 	reader, writer := io.Pipe()
 
 	return Pipe{
-		Reader: NewReader(reader),
-		Writer: NewWriter(writer, writer.Close),
+		decoder: json.NewDecoder(reader),
+		encoder: json.NewEncoder(writer),
+		close:   writer.Close,
 	}
 }

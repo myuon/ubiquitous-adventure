@@ -35,7 +35,7 @@ func DecodeItem(item map[string]types.AttributeValue) ([]byte, error) {
 
 func (client *InputDynamoDbClient) Connect(
 	ctx context.Context,
-	writer gallon.Writer,
+	writer gallon.WriteCloser,
 	decoder func(item map[string]types.AttributeValue) (gallon.Record, error),
 ) error {
 	pager := dynamodb.NewScanPaginator(client.dynamoDb, &dynamodb.ScanInput{
