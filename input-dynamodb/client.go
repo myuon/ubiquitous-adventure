@@ -38,45 +38,41 @@ func (client *InputDynamoDbClient) Connect(
 	writer gallon.Writer,
 	decoder func(item map[string]types.AttributeValue) (gallon.Record, error),
 ) error {
-	go func() {
-		pager := dynamodb.NewScanPaginator(client.dynamoDb, &dynamodb.ScanInput{
-			TableName: &client.conf.TableName,
-			Limit:     client.conf.PageSize,
-		})
-		count := 1
+	pager := dynamodb.NewScanPaginator(client.dynamoDb, &dynamodb.ScanInput{
+		TableName: &client.conf.TableName,
+		Limit:     client.conf.PageSize,
+	})
+	count := 1
 
-		for pager.HasMorePages() {
-			if client.conf.PageLimit != nil && count > *client.conf.PageLimit {
-				break
-			}
+	for pager.HasMorePages() {
+		if client.conf.PageLimit != nil && count > *client.conf.PageLimit {
+			break
+		}
 
-			output, err := pager.NextPage(ctx)
+		output, err := pager.NextPage(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, item := range output.Items {
+			r, err := decoder(item)
 			if err != nil {
 				log.Fatalf("%v", err)
-				return
+				continue
 			}
 
-			for _, item := range output.Items {
-				r, err := decoder(item)
-				if err != nil {
-					log.Fatalf("%v", err)
-					return
-				}
-
-				if err := writer.Write(r); err != nil {
-					log.Fatalf("%v", err)
-					return
-				}
+			if err := writer.Write(r); err != nil {
+				log.Fatalf("%v", err)
+				continue
 			}
-
-			count++
 		}
 
-		if err := writer.Close(); err != nil {
-			log.Fatalf("%v", err)
-			return
-		}
-	}()
+		count++
+	}
+
+	if err := writer.Close(); err != nil {
+		return err
+	}
 
 	return nil
 }

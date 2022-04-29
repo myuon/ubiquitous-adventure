@@ -56,24 +56,26 @@ func (client *OutputFileClient) Connect(
 		writer = gzip.NewWriter(writer)
 	}
 
-	var record gallon.Record
+	go func() {
+		var record gallon.Record
 
-	for reader.More() {
-		if err := reader.Read(&record); err != nil {
-			log.Fatalf("%v", err)
-			continue
-		}
+		for reader.More() {
+			if err := reader.Read(&record); err != nil {
+				log.Fatalf("%v", err)
+				continue
+			}
 
-		bs, err := encoder(record)
-		if err != nil {
-			log.Fatalf("%v", err)
-			continue
+			bs, err := encoder(record)
+			if err != nil {
+				log.Fatalf("%v", err)
+				continue
+			}
+			if _, err := writer.Write(bs); err != nil {
+				log.Fatalf("%v", err)
+				continue
+			}
 		}
-		if _, err := writer.Write(bs); err != nil {
-			log.Fatalf("%v", err)
-			continue
-		}
-	}
+	}()
 
 	return nil
 }

@@ -59,21 +59,6 @@ type Worker struct {
 func (worker Worker) Run() error {
 	pipe := gallon.NewPipe()
 
-	if err := worker.input.Connect(
-		context.TODO(),
-		pipe.Writer,
-		func(item map[string]types.AttributeValue) (gallon.Record, error) {
-			var inData InData
-			if err := attributevalue.UnmarshalMap(item, &inData); err != nil {
-				return nil, err
-			}
-
-			return inData.Encode()
-		},
-	); err != nil {
-		return err
-	}
-
 	if err := worker.output.Connect(
 		context.TODO(),
 		pipe.Reader,
@@ -84,6 +69,21 @@ func (worker Worker) Run() error {
 			}
 
 			return json.Marshal(&outData)
+		},
+	); err != nil {
+		return err
+	}
+
+	if err := worker.input.Connect(
+		context.TODO(),
+		pipe.Writer,
+		func(item map[string]types.AttributeValue) (gallon.Record, error) {
+			var inData InData
+			if err := attributevalue.UnmarshalMap(item, &inData); err != nil {
+				return nil, err
+			}
+
+			return inData.Encode()
 		},
 	); err != nil {
 		return err
@@ -104,9 +104,8 @@ func start() error {
 	}
 
 	loader := outputfile.NewOutputFileClient(outputfile.OutputFileClientConfig{
-		FilePath:    "./data/output.jsonl",
-		FileFormat:  outputfile.Json,
-		Compression: outputfile.Gzip,
+		FilePath:   "./data/new.jsonl",
+		FileFormat: outputfile.Json,
 	})
 
 	worker := Worker{
