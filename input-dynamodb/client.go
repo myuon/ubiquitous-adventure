@@ -17,6 +17,7 @@ type InputDynamoDbClientConfig struct {
 	Region    string
 	PageLimit *int
 	PageSize  *int32
+	Decoder   func(item map[string]types.AttributeValue) (gallon.Record, error)
 }
 
 type InputDynamoDbClient struct {
@@ -36,7 +37,6 @@ func DecodeItem(item map[string]types.AttributeValue) ([]byte, error) {
 func (client *InputDynamoDbClient) Connect(
 	ctx context.Context,
 	writer gallon.WriteCloser,
-	decoder func(item map[string]types.AttributeValue) (gallon.Record, error),
 ) error {
 	pager := dynamodb.NewScanPaginator(client.dynamoDb, &dynamodb.ScanInput{
 		TableName: &client.conf.TableName,
@@ -55,7 +55,7 @@ func (client *InputDynamoDbClient) Connect(
 		}
 
 		for _, item := range output.Items {
-			r, err := decoder(item)
+			r, err := client.conf.Decoder(item)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to decode item")
 				continue

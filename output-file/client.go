@@ -28,6 +28,7 @@ type OutputFileClientConfig struct {
 	FilePath    string
 	FileFormat  FileFormat
 	Compression Compression
+	Encoder     func(gallon.Record) ([]byte, error)
 }
 
 type OutputFileClient struct {
@@ -37,7 +38,6 @@ type OutputFileClient struct {
 func (client *OutputFileClient) Connect(
 	ctx context.Context,
 	reader gallon.Reader,
-	encoder func(gallon.Record) ([]byte, error),
 ) error {
 	filePath := client.conf.FilePath
 	if client.conf.Compression == Gzip {
@@ -70,7 +70,7 @@ func (client *OutputFileClient) Connect(
 				continue
 			}
 
-			bs, err := encoder(record)
+			bs, err := client.conf.Encoder(record)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to encode record")
 				continue

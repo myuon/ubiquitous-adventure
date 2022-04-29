@@ -64,14 +64,6 @@ func (worker Worker) Run() error {
 	if err := worker.output.Connect(
 		context.TODO(),
 		pipe,
-		func(r gallon.Record) ([]byte, error) {
-			outData, err := Decode(r)
-			if err != nil {
-				return nil, err
-			}
-
-			return json.Marshal(&outData)
-		},
 	); err != nil {
 		return err
 	}
@@ -79,14 +71,6 @@ func (worker Worker) Run() error {
 	if err := worker.input.Connect(
 		context.TODO(),
 		pipe,
-		func(item map[string]types.AttributeValue) (gallon.Record, error) {
-			var inData InData
-			if err := attributevalue.UnmarshalMap(item, &inData); err != nil {
-				return nil, err
-			}
-
-			return inData.Encode()
-		},
 	); err != nil {
 		return err
 	}
@@ -100,6 +84,14 @@ func start() error {
 		Region:    "ap-northeast-1",
 		PageLimit: aws.Int(1),
 		PageSize:  aws.Int32(10),
+		Decoder: func(item map[string]types.AttributeValue) (gallon.Record, error) {
+			var inData InData
+			if err := attributevalue.UnmarshalMap(item, &inData); err != nil {
+				return nil, err
+			}
+
+			return inData.Encode()
+		},
 	})
 	if err != nil {
 		return err
@@ -108,6 +100,14 @@ func start() error {
 	output := outputfile.NewOutputFileClient(outputfile.OutputFileClientConfig{
 		FilePath:   "./data/new.jsonl",
 		FileFormat: outputfile.Jsonl,
+		Encoder: func(r gallon.Record) ([]byte, error) {
+			outData, err := Decode(r)
+			if err != nil {
+				return nil, err
+			}
+
+			return json.Marshal(&outData)
+		},
 	})
 
 	worker := Worker{
