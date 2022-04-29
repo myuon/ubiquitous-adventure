@@ -34,7 +34,7 @@ func DecodeItem(item map[string]types.AttributeValue) ([]byte, error) {
 	return json.Marshal(&result)
 }
 
-func (client *InputDynamoDbClient) Connect(
+func (client InputDynamoDbClient) Connect(
 	ctx context.Context,
 	writer gallon.WriteCloser,
 ) error {
@@ -90,3 +90,5 @@ func NewInputDynamoDbClient(conf InputDynamoDbClientConfig) (InputDynamoDbClient
 		conf:     conf,
 	}, nil
 }
+
+var _ gallon.InputPlugin = InputDynamoDbClient{}

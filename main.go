@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 
@@ -53,31 +52,6 @@ func Decode(record gallon.Record) (OutData, error) {
 	}, nil
 }
 
-type Worker struct {
-	input  inputdynamodb.InputDynamoDbClient
-	output outputfile.OutputFileClient
-}
-
-func (worker Worker) Run() error {
-	pipe := gallon.NewPipe()
-
-	if err := worker.output.Connect(
-		context.TODO(),
-		pipe,
-	); err != nil {
-		return err
-	}
-
-	if err := worker.input.Connect(
-		context.TODO(),
-		pipe,
-	); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func start() error {
 	input, err := inputdynamodb.NewInputDynamoDbClient(inputdynamodb.InputDynamoDbClientConfig{
 		TableName: os.Getenv("TABLE_NAME"),
@@ -110,12 +84,12 @@ func start() error {
 		},
 	})
 
-	worker := Worker{
-		input:  input,
-		output: output,
-	}
+	g := gallon.NewGallon(
+		input,
+		output,
+	)
 
-	if err := worker.Run(); err != nil {
+	if err := g.Run(); err != nil {
 		return err
 	}
 

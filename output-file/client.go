@@ -35,7 +35,7 @@ type OutputFileClient struct {
 	conf OutputFileClientConfig
 }
 
-func (client *OutputFileClient) Connect(
+func (client OutputFileClient) Connect(
 	ctx context.Context,
 	reader gallon.Reader,
 ) error {
@@ -94,3 +94,5 @@ func NewOutputFileClient(conf OutputFileClientConfig) OutputFileClient {
 		conf: conf,
 	}
 }
+
+var _ gallon.OutputPlugin = OutputFileClient{}

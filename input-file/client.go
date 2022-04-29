@@ -25,7 +25,7 @@ type InputFileClient struct {
 	conf InputFileClientConfig
 }
 
-func (client *InputFileClient) Connect(
+func (client InputFileClient) Connect(
 	ctx context.Context,
 	writer gallon.WriteCloser,
 ) error {
@@ -72,3 +72,5 @@ func NewInputFileClient(conf InputFileClientConfig) InputFileClient {
 		conf: conf,
 	}
 }
+
+var _ gallon.InputPlugin = InputFileClient{}
