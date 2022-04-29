@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -12,6 +11,9 @@ import (
 	"github.com/myuon/ubiquitous-adventure/gallon"
 	inputdynamodb "github.com/myuon/ubiquitous-adventure/input-dynamodb"
 	outputfile "github.com/myuon/ubiquitous-adventure/output-file"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/pkgerrors"
 )
 
 type InData struct {
@@ -121,9 +123,15 @@ func start() error {
 }
 
 func main() {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	log.Logger = log.With().Caller().Logger().Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	log.Info().Msg("start")
 	if err := start(); err != nil {
-		log.Fatalf("%v", err)
+		log.Error().Stack().Err(err).Msg("failed")
 	}
+	log.Info().Msg("finished")
 
 	return
 }

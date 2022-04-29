@@ -7,6 +7,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.13.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.7.4 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/rs/zerolog v1.26.1 // indirect
 )
 
 require (

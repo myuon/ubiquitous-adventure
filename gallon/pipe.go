@@ -2,31 +2,30 @@ package gallon
 
 import (
 	"io"
+	"sync"
 )
 
 type Record []interface{}
 
 type Pipe struct {
 	buffer chan Record
-	close  func() error
+	done   chan struct{}
+	once   *sync.Once // for done
 }
 
 type Reader interface {
 	Read(record *Record) error
-	More() bool
 }
 
 func (r Pipe) Read(record *Record) error {
 	select {
+	case <-r.done:
+		return io.EOF
 	case r := <-r.buffer:
 		*record = r
 	}
 
 	return nil
-}
-
-func (r Pipe) More() bool {
-	return true
 }
 
 type WriteCloser interface {
@@ -43,12 +42,19 @@ func (w Pipe) Write(record Record) error {
 }
 
 func (w Pipe) Close() error {
-	close(w.buffer)
-	return io.EOF
+	w.once.Do(func() {
+		close(w.done)
+	})
+
+	return nil
 }
 
 func NewPipe() Pipe {
+	done := make(chan struct{})
+
 	return Pipe{
 		buffer: make(chan Record),
+		done:   done,
+		once:   &sync.Once{},
 	}
 }

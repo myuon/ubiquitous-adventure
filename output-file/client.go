@@ -3,11 +3,12 @@ package outputfile
 import (
 	"compress/gzip"
 	"context"
+	"errors"
 	"io"
-	"log"
 	"os"
 
 	"github.com/myuon/ubiquitous-adventure/gallon"
+	"github.com/rs/zerolog/log"
 )
 
 type FileFormat string
@@ -59,15 +60,19 @@ func (client *OutputFileClient) Connect(
 		defer func() { writer.Close() }()
 		var record gallon.Record
 
-		for reader.More() {
+		for {
 			if err := reader.Read(&record); err != nil {
-				log.Fatalf("%v", err)
+				if errors.Is(err, io.EOF) {
+					return
+				}
+
+				log.Error().Err(err).Msg("failed to read record")
 				continue
 			}
 
 			bs, err := encoder(record)
 			if err != nil {
-				log.Fatalf("%v", err)
+				log.Error().Err(err).Msg("failed to encode record")
 				continue
 			}
 
@@ -75,7 +80,7 @@ func (client *OutputFileClient) Connect(
 				bs = append(bs, '\n')
 			}
 			if _, err := writer.Write(bs); err != nil {
-				log.Fatalf("%v", err)
+				log.Error().Err(err).Msg("failed to write record")
 				continue
 			}
 		}

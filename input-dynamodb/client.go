@@ -3,13 +3,13 @@ package inputdynamodb
 import (
 	"context"
 	"encoding/json"
-	"log"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/myuon/ubiquitous-adventure/gallon"
+	"github.com/rs/zerolog/log"
 )
 
 type InputDynamoDbClientConfig struct {
@@ -57,12 +57,12 @@ func (client *InputDynamoDbClient) Connect(
 		for _, item := range output.Items {
 			r, err := decoder(item)
 			if err != nil {
-				log.Fatalf("%v", err)
+				log.Error().Err(err).Msg("failed to decode item")
 				continue
 			}
 
 			if err := writer.Write(r); err != nil {
-				log.Fatalf("%v", err)
+				log.Error().Err(err).Msg("failed to write record")
 				continue
 			}
 		}
