@@ -40,9 +40,6 @@ func (client OutputFileClient) Connect(
 	reader gallon.Reader,
 ) error {
 	filePath := client.conf.FilePath
-	if client.conf.Compression == Gzip {
-		filePath += ".gz"
-	}
 
 	file, err := os.Create(filePath)
 	if err != nil {
