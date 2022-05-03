@@ -2,12 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/brianvoe/gofakeit/v6"
 	"github.com/myuon/ubiquitous-adventure/gallon"
 	inputfile "github.com/myuon/ubiquitous-adventure/input-file"
 	outputfile "github.com/myuon/ubiquitous-adventure/output-file"
+	"github.com/myuon/ubiquitous-adventure/testdata"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
@@ -124,7 +127,7 @@ func start() error {
 	return nil
 }
 
-func main() {
+func mainGallon() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 	log.Logger = log.With().Caller().Logger().Output(zerolog.ConsoleWriter{Out: os.Stderr})
@@ -136,4 +139,15 @@ func main() {
 	log.Info().Msg("finished")
 
 	return
+}
+
+func mainGenData() {
+	if err := testdata.CreateFile(fmt.Sprintf("users-%v.jsonl", gofakeit.LetterN(10)), testdata.GenerateFakeUsers(10000).Jsonl()); err != nil {
+		panic(err)
+	}
+}
+
+func main() {
+	// mainGenData
+	mainGallon()
 }
